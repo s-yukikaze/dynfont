@@ -1,0 +1,54 @@
+Dynfont - Dynamic font loader for Windows GVim
+
+Introduction
+================================
+Dynfont enables Windows GVim to use a private font dynamically.
+This is the experimental plugin. Please use at your own risk.
+
+
+Requirement
+================================
+
+* Windows GVim
+* Visual C++ >= 9.0
+
+
+Install
+================================
+1. Put autoload and build_msvc9.mak into GVim directory.
+2. Run cmd.exe and chdir to GVim directory. 
+3. Run following command: 'nmake -f build_msvc9.mak'.
+4. Delete build_msvc9.mak.
+5. That's all.
+
+
+Reference
+================================
+dynfont#load(fontpath)
+--------------------------------
+Install a private font specified by fontpath.
+If installation succeeds, the return value is nonzero. Otherwise, the return value is zero.
+You can specify the font to ':setguifont' command after installation has succeeded.
+
+License
+================================
+A. This software is "Everyone'sWare". It means:
+  Anybody who has this software can use it as if he/she is
+  the author.
+
+  A-1. Freeware. No fee is required.
+  A-2. You can freely redistribute this software.
+  A-3. You can freely modify this software. And the source
+      may be used in any software with no limitation.
+  A-4. When you release a modified version to public, you
+      must publish it with your name.
+
+B. The author is not responsible for any kind of damages or loss
+  while using or misusing this software, which is distributed
+  "AS IS". No warranty of any kind is expressed or implied.
+  You use AT YOUR OWN RISK.
+
+C. Copyrighted to s-yukikaze.
+
+D. Above three clauses are applied both to source and binary
+  form of this software.
