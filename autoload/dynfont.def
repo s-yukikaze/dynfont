@@ -1,0 +1,3 @@
+LIBRARY dynfont.dll
+EXPORTS
+	dynamic_font
