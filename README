@@ -5,21 +5,22 @@ Introduction
 Dynfont enables Windows GVim to use a private font dynamically.
 This is the experimental plugin. Please use at your own risk.
 
-
 Requirement
 ================================
 
-* Windows GVim
-* Visual C++ >= 9.0
-
+* Windows GVim (win32/win64)
+* Visual C++ >= 9.0 or MinGW32 gcc or MinGW64 gcc
 
 Install
 ================================
-1. Put autoload and build_msvc9.mak into GVim directory.
+1. Put autoload and Makefile.* into GVim directory.
 2. Run cmd.exe and chdir to GVim directory. 
-3. Run following command: 'nmake -f build_msvc9.mak'.
-4. Delete build_msvc9.mak.
-5. That's all.
+3. Run following command: 
+  'nmake -f Makefile.msvc32' (for Visual C++ & win32)
+  'nmake -f Makefile.msvc64' (for Visual C++ & win64)
+  'mingw32-make -f Makefile.mingw32' (for MinGW32 & win32)
+  'mingw32-make -f Makefile.mingw64' (for MinGW64 & win64)
+4. That's all.
 
 
 Reference
