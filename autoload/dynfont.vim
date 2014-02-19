@@ -23,8 +23,16 @@ else
 endif
 
 let s:dynfont_enabled = 0
-if has('win32')
-  let s:so_path = expand("<sfile>:p:h") . "/dynfont.dll"
+if has('win64')
+  let s:so_name = "dynfont_win64.dll"
+elseif has('win32')
+  let s:so_name = "dynfont_win32.dll"
+else
+  let s:so_name = ""
+endif
+
+if s:so_name != ""
+  let s:so_path = expand("<sfile>:p:h") . "/" . s:so_name
   let s:so_path = s:iconv(s:so_path, &encoding, s:termencoding)
   if filereadable(s:so_path)
     let s:dynfont_enabled = 1
@@ -39,7 +47,7 @@ if s:dynfont_enabled != 0
   endfunction
 
 else
-  function! dynfont#load(fontpath)"{{{
+  function! dynfont#load(fontpath)
     return "false"
   endfunction
 endif

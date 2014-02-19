@@ -1,7 +1,7 @@
 CXX=g++
-CFLAGS=-O2 -mdll -m32 -mno-cygwin
-LDFLAGS=-s -ldxguid -lgdi32
-TARGET=autoload/dynfont.dll
+CFLAGS=-O2 -mdll -m32
+LDFLAGS=-s -ldxguid -lgdi32 -limagehlp
+TARGET=autoload/dynfont_win32.dll
 SRC=autoload/dynfont.cpp
 DEF=autoload/dynfont.def
 

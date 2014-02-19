@@ -1,0 +1,10 @@
+all: autoload/dynfont_win32.dll
+
+autoload/dynfont_win32.dll: autoload/dynfont.cpp
+	cl /nologo /c /Os /MD /LD /GL /EHsc /Tpautoload\dynfont.cpp
+	link /def:autoload\dynfont.def /dll /LTCG /out:autoload\dynfont_win32.dll dynfont.obj gdi32.lib dwrite.lib imagehlp.lib
+	mt -nologo -manifest autoload\dynfont_win32.dll.manifest -outputresource:autoload\dynfont_win32.dll;#2
+
+clean:
+	cmd /c "del /F /Q dynfont.obj autoload\dynfont_win32.dll autoload\dynfont_win32.dll.manifest autoload\dynfont_win32.lib autoload\dynfont_win32.exp"
+

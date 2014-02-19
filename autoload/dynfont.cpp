@@ -4,25 +4,10 @@
 
 #define _WIN32_WINNT 0x601
 #include <windows.h>
+#include <imagehlp.h>
 #include <set>
 #include <vector>
 #include <string>
-
-#if defined(__MINGW32__)
-#define __CRT_UUID_DECL(type,l,w1,w2,b1,b2,b3,b4,b5,b6,b7,b8)           \
-    extern "C++" {                                                      \
-    template<> inline const GUID &__mingw_uuidof<type>() {              \
-        static const IID __uuid_inst = {l,w1,w2, {b1,b2,b3,b4,b5,b6,b7,b8}}; \
-        return __uuid_inst;                                             \
-    }                                                                   \
-    template<> inline const GUID &__mingw_uuidof<type*>() {             \
-        return __mingw_uuidof<type>();                                  \
-    }                                                                   \
-    }
-
-#define __uuidof(type) __mingw_uuidof<__typeof(type)>()
-template<typename type> inline const GUID &__mingw_uuidof();
-#endif
 
 #include <dwrite.h>
 
@@ -39,13 +24,11 @@ DECLARE_INTERFACE_(IDWriteFontFileEnumerator_MinGW,IUnknown)
     STDMETHOD_(ULONG, Release)(THIS) PURE;
 
     /* IDWriteFontFileEnumerator methods */
-    STDMETHOD_(HRESULT,MoveNext)(THIS_ BOOL * hasCurrentFile) PURE;
+    STDMETHOD_(HRESULT,MoveNext)(THIS_ WINBOOL * hasCurrentFile) PURE;
     STDMETHOD_(HRESULT,GetCurrentFontFile)(THIS_ IDWriteFontFile ** fontFile) PURE;
 
     END_INTERFACE
 };
-
-__CRT_UUID_DECL(IUnknown, 0x00000000, 0x0000, 0x0000, 0xc0,0x00, 0x00,0x00,0x00,0x00,0x00,0x46)
 __CRT_UUID_DECL(IDWriteFontFileEnumerator, 0x72755049, 0x5ff7, 0x435d, 0x83,0x48, 0x4b,0xe9,0x7c,0xfa,0x6c,0x7c)
 __CRT_UUID_DECL(IDWriteFontCollectionLoader, 0xcca920e4, 0x52f0, 0x492b, 0xbf,0xa8, 0x29,0xc7,0x2e,0xe0,0xa4,0x68)
 
@@ -55,7 +38,7 @@ __CRT_UUID_DECL(IDWriteFontCollectionLoader, 0xcca920e4, 0x52f0, 0x492b, 0xbf,0x
 #endif
 
 #if __cplusplus < 201103L
-#define nullptr 0
+#define nullptr ((LONG_PTR)0)
 #endif
 
 #undef OutputDebugString
@@ -215,7 +198,7 @@ public:
     {
         if (inst == nullptr) {
             fontfile_collection_loader *temp_inst = new(std::nothrow) fontfile_collection_loader();
-            if (InterlockedCompareExchange((LONG *)&inst, (LONG)temp_inst, (LONG)nullptr) != (LONG)nullptr) {
+            if (InterlockedCompareExchangePointer((void**)&inst, temp_inst, nullptr) != nullptr) {
                 delete temp_inst;
             }
         }
@@ -358,7 +341,7 @@ public:
     virtual HRESULT STDMETHODCALLTYPE ConvertFontToLOGFONT(
         IDWriteFont *font,
         LOGFONTW *logFont,
-        BOOL *isSystemFont)
+        WINBOOL *isSystemFont)
     {
         return orig_this->ConvertFontToLOGFONT(font, logFont, isSystemFont); 
     }
@@ -427,7 +410,7 @@ public:
         EnterCriticalSection(&fontpathscs);
         IDWriteFontCollection* coll;
         if (SUCCEEDED(orig_this->CreateCustomFontCollection(&loader, nullptr, 0, &coll))) {
-            InterlockedExchange((LONG*)&mycoll, (LONG)coll);
+            InterlockedExchangePointer((void**)&mycoll, coll);
 	    iunknown_release(coll);
 	}
         LeaveCriticalSection(&fontpathscs);
@@ -691,6 +674,7 @@ public:
 
 HRESULT WINAPI oncall_DWriteCreateFactory(DWRITE_FACTORY_TYPE factorytype, REFIID iid, IUnknown **factory)
 {
+    OutputDebugString("DWriteCreateFactory");
     HRESULT result = orig_DWriteCreateFactory(factorytype, iid, factory);
     if (SUCCEEDED(result) && *factory != nullptr) {
         IUnknown *delegate = new(std::nothrow) delegate_dwritefactory((IDWriteFactory *)*factory);
@@ -706,6 +690,7 @@ FARPROC WINAPI oncall_GetProcAddress(HMODULE module, LPCSTR procname)
     FARPROC result = GetProcAddress(module, procname);
 
     if (result != nullptr && lstrcmpi(procname, "DWriteCreateFactory") == 0) {
+        OutputDebugString("dynfont: DWriteCreateFactory hooked.");
         orig_DWriteCreateFactory = (DWRITECREATEFACTORY_PROTO)result;
         return (FARPROC)oncall_DWriteCreateFactory;
     } else {
@@ -716,9 +701,6 @@ FARPROC WINAPI oncall_GetProcAddress(HMODULE module, LPCSTR procname)
 BOOL hook_getprocaddress()
 {
     HMODULE vim;
-    PIMAGE_DOS_HEADER doshdr;
-    PIMAGE_NT_HEADERS32 nthdrs;
-    PIMAGE_DATA_DIRECTORY impdir;
     PIMAGE_IMPORT_DESCRIPTOR impdesc;
     PIMAGE_IMPORT_DESCRIPTOR kernel32;
     PIMAGE_THUNK_DATA lookuptbl;
@@ -726,29 +708,26 @@ BOOL hook_getprocaddress()
     MEMORY_BASIC_INFORMATION bufinfo;
     BOOL succeeded;
     DWORD oldprotect;
-    int retsize;
+    DWORD retsize;
     int i;
 
     vim = GetModuleHandle(NULL);
-    doshdr = (PIMAGE_DOS_HEADER)vim;
-    if (doshdr->e_magic != IMAGE_DOS_SIGNATURE) return FALSE;
-    nthdrs = (PIMAGE_NT_HEADERS32)((char*)doshdr + doshdr->e_lfanew);
-    if (nthdrs->Signature != IMAGE_NT_SIGNATURE) return FALSE;
-    if (nthdrs->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR_MAGIC) return FALSE;
 
-    impdir = &nthdrs->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-    if (impdir->Size == 0) return FALSE;
+    impdesc = (PIMAGE_IMPORT_DESCRIPTOR)ImageDirectoryEntryToData((HMODULE)vim, TRUE, IMAGE_DIRECTORY_ENTRY_IMPORT, &retsize);
+    if (retsize == 0) return FALSE;
+    OutputDebugString("dynfont: importdir found");
 
-    impdesc = (PIMAGE_IMPORT_DESCRIPTOR)((char*)vim + impdir->VirtualAddress);
     kernel32 = NULL;
     for (i = 0; impdesc[i].Characteristics != 0; ++i) {
         LPCSTR libname = (LPCSTR)((char*)vim + impdesc[i].Name);
+        OutputDebugString(libname);
         if (lstrcmpi(libname, "KERNEL32.DLL") == 0) {
             kernel32 = &impdesc[i];
             break;
         }
     }
     if (kernel32 == NULL) return FALSE;
+    OutputDebugString("dynfont: kernel32 found.");
 
     lookuptbl = (PIMAGE_THUNK_DATA)((char*)vim + kernel32->OriginalFirstThunk);
     addrtbl = (PIMAGE_THUNK_DATA)((char*)vim + kernel32->FirstThunk);
@@ -761,6 +740,7 @@ BOOL hook_getprocaddress()
         }
     }
     if (lookuptbl->u1.Function == 0) return FALSE;
+    OutputDebugString("dynfont: getprocaddr found.");
 
     orig_GetProcAddress = (GETPROCADDRESS_PROTO)addrtbl->u1.Function;
     retsize = VirtualQuery((LPCVOID)&addrtbl->u1.Function, &bufinfo, sizeof(bufinfo));
@@ -769,6 +749,7 @@ BOOL hook_getprocaddress()
     if (succeeded == FALSE) return FALSE;
     addrtbl->u1.Function = (DWORD_PTR)oncall_GetProcAddress;
     VirtualProtect(bufinfo.BaseAddress, bufinfo.RegionSize, bufinfo.Protect, &oldprotect);
+    OutputDebugString("dynfont: hooked.");
     return TRUE; 
 }
 

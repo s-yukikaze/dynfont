@@ -1,0 +1,14 @@
+CXX=g++
+CFLAGS=-O2 -mdll -m64
+LDFLAGS=-s -ldxguid -lgdi32 -limagehlp
+TARGET=autoload/dynfont_win64.dll
+SRC=autoload/dynfont.cpp
+DEF=autoload/dynfont.def
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CXX) $(CFLAGS) -o $@ $(SRC) $(DEF) $(LDFLAGS)
+
+clean:
+	rm -f $(TARGET) *.o
