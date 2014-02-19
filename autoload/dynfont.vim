@@ -4,8 +4,6 @@ endif
 let g:loaded_dynfont = 1
 
 command! -nargs=1 -complete=file DynamicFont :echo dynfont#dynamic_font(<f-args>)
-command! -nargs=0 EnableDirectWrite :call s:enable_directwrite('1')
-command! -nargs=0 DisableDirectWrite :call s:enable_directwrite('0')
 
 if has('iconv')
   let s:termencoding = &termencoding
